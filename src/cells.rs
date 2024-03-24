@@ -1,4 +1,5 @@
 use crate::{ H, W };
+use std::thread;
 
 fn get_neighbor_indices(&index: &usize) -> [Option<usize>; 8] {
     let mut neighbors: [Option<usize>; 8] = [None; 8];
@@ -57,18 +58,33 @@ fn get_living_neighbor_counts(&cells: &[u8; H * W]) -> [u8; H * W] {
     counts
 }
 
+fn get_next_cell_value(cell: u8, living_neighbor_count: u8) -> u8 {
+    if cell == 1 && living_neighbor_count < 2 {
+        return 0;
+    } else if cell == 1 && living_neighbor_count >= 4 {
+        return 0;
+    } else if cell == 0 && living_neighbor_count == 3 {
+        return 1;
+    }
+    cell
+}
+
 pub fn update_cells(mut cells: [u8; H * W]) -> [u8; H * W] {
     let living_neighbor_counts = get_living_neighbor_counts(&cells);
+    let mut handles: Vec<thread::JoinHandle<(usize, u8)>> = Vec::new();
+    let _ = thread::available_parallelism().inspect(|p| println!("{p}"));
     for ii in 0..H * W {
-        if cells[ii] == 1 && living_neighbor_counts[ii] < 2 {
-            cells[ii] = 0;
-        } else if cells[ii] == 1 && living_neighbor_counts[ii] < 4 {
-            continue;
-        } else if cells[ii] == 1 && living_neighbor_counts[ii] >= 4 {
-            cells[ii] = 0;
-        } else if cells[ii] == 0 && living_neighbor_counts[ii] == 3 {
-            cells[ii] = 1;
-        }
+        let cell = cells[ii];
+        let living_neighbor_count = living_neighbor_counts[ii];
+        handles.push(
+            thread::spawn(move || { (ii, get_next_cell_value(cell, living_neighbor_count)) })
+        );
+    }
+    for handle in handles {
+        // Note we're not handling the case of a thread panicking
+        let _ = handle.join().inspect(|(ii, value)| {
+            cells[*ii] = *value;
+        });
     }
     cells
 }

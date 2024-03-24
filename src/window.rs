@@ -23,8 +23,7 @@ pub fn run() {
 
     let mut rng = rand::thread_rng();
     for ii in 0..CELLS_COUNT {
-        let value: u8 = rng.gen::<u8>() / 180;
-        cells[ii] = value;
+        cells[ii] = rng.gen::<f64>().round() as u8;
     }
 
     event_loop.run(move |event, _, control_flow| {
