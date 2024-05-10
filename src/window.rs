@@ -1,4 +1,6 @@
 use std::num::NonZeroU32;
+use std::cmp::min;
+use rand::Rng;
 use winit::event::{ Event, StartCause, WindowEvent };
 use winit::event_loop::{ ControlFlow, EventLoop };
 use winit::window::WindowBuilder;
@@ -14,16 +16,22 @@ pub fn run() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let context = (unsafe { softbuffer::Context::new(&window) }).unwrap();
     let mut surface = (unsafe { softbuffer::Surface::new(&context, &window) }).unwrap();
-    let mut cells: [u8; CELLS_COUNT] = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0];
+    let mut cells: [u8; CELLS_COUNT] = [0; CELLS_COUNT];
+
+    let mut rng = rand::thread_rng();
+    for ii in 0..CELLS_COUNT {
+        let value: u8 = rng.gen::<u8>() / 180;
+        cells[ii] = value;
+    }
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-        // println!("Event {:?}", event);
 
         match event {
             Event::NewEvents(start_clause) if start_clause == StartCause::Poll => {
                 let (screen_width, screen_height) = {
                     let size = window.inner_size();
+                    // println!("window size {:?}", window.inner_size());
                     (size.width, size.height)
                 };
                 cells = update_cells(cells);
@@ -35,21 +43,31 @@ pub fn run() {
                     .unwrap();
 
                 let mut buffer = surface.buffer_mut().unwrap();
-                let pixels = (screen_width as usize) * (screen_height as usize);
-                let adjustment_factor = pixels / CELLS_COUNT;
+                let pixels: usize = (screen_width as usize) * (screen_height as usize);
+                let width_scale_factor = (screen_width as usize) / W;
+                let height_scale_factor = (screen_height as usize) / H;
                 for ii in 0..pixels {
-                    let mut relative_index = ii / adjustment_factor;
-                    if relative_index > CELLS_COUNT - 1 {
-                        relative_index = CELLS_COUNT - 1;
-                    }
-                    buffer[ii] = if cells[relative_index] == 0 { WHITE } else { BLACK };
-                }
+                    let x = ii % (screen_width as usize);
+                    let y = ii / (screen_width as usize);
 
+                    let relative_x_index = x / width_scale_factor;
+                    let relative_y_index = y / height_scale_factor;
+                    let relative_index = min(
+                        CELLS_COUNT - 1,
+                        relative_x_index + relative_y_index * W
+                    );
+                    let color = {
+                        if cells[relative_index] == 0 { WHITE } else { BLACK }
+                    };
+                    buffer[ii] = color;
+                }
                 buffer.present().unwrap();
             }
+
             Event::RedrawRequested(window_id) if window_id == window.id() => {
                 let (screen_width, screen_height) = {
                     let size = window.inner_size();
+                    // println!("window size {:?}", window.inner_size());
                     (size.width, size.height)
                 };
                 cells = update_cells(cells);
@@ -61,18 +79,27 @@ pub fn run() {
                     .unwrap();
 
                 let mut buffer = surface.buffer_mut().unwrap();
-                let pixels = (screen_width as usize) * (screen_height as usize);
-                let adjustment_factor = pixels / CELLS_COUNT;
+                let pixels: usize = (screen_width as usize) * (screen_height as usize);
+                let width_scale_factor = (screen_width as usize) / W;
+                let height_scale_factor = (screen_height as usize) / H;
                 for ii in 0..pixels {
-                    let mut relative_index = ii / adjustment_factor;
-                    if relative_index > CELLS_COUNT - 1 {
-                        relative_index = CELLS_COUNT - 1;
-                    }
-                    buffer[ii] = if cells[relative_index] == 0 { WHITE } else { BLACK };
-                }
+                    let x = ii % (screen_width as usize);
+                    let y = ii / (screen_width as usize);
 
+                    let relative_x_index = x / width_scale_factor;
+                    let relative_y_index = y / height_scale_factor;
+                    let relative_index = min(
+                        CELLS_COUNT - 1,
+                        relative_x_index + relative_y_index * W
+                    );
+                    let color = {
+                        if cells[relative_index] == 0 { WHITE } else { BLACK }
+                    };
+                    buffer[ii] = color;
+                }
                 buffer.present().unwrap();
             }
+
             Event::WindowEvent { event: WindowEvent::CloseRequested, window_id } if
                 window_id == window.id()
             => {

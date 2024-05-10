@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 open = "5.1.2"
+rand = "0.8.5"
 softbuffer = "0.3.4"
 winit = "0.28.1"
