@@ -1,4 +1,4 @@
-use crate::{H, W};
+use crate::{ H, W };
 
 fn get_neighbor_indices(&index: &usize) -> [Option<usize>; 8] {
     let mut neighbors: [Option<usize>; 8] = [None; 8];
@@ -51,7 +51,7 @@ fn get_living_neighbor_count(&index: &usize, &cells: &[u8; H * W]) -> u8 {
 
 fn get_living_neighbor_counts(&cells: &[u8; H * W]) -> [u8; H * W] {
     let mut counts: [u8; H * W] = [0; H * W];
-    for ii in 0..(H * W) {
+    for ii in 0..H * W {
         counts[ii] = get_living_neighbor_count(&ii, &cells);
     }
     counts
@@ -59,7 +59,7 @@ fn get_living_neighbor_counts(&cells: &[u8; H * W]) -> [u8; H * W] {
 
 pub fn update_cells(mut cells: [u8; H * W]) -> [u8; H * W] {
     let living_neighbor_counts = get_living_neighbor_counts(&cells);
-    for ii in 0..(H * W) {
+    for ii in 0..H * W {
         if cells[ii] == 1 && living_neighbor_counts[ii] < 2 {
             cells[ii] = 0;
         } else if cells[ii] == 1 && living_neighbor_counts[ii] < 4 {
@@ -71,14 +71,4 @@ pub fn update_cells(mut cells: [u8; H * W]) -> [u8; H * W] {
         }
     }
     cells
-}
-
-pub fn print_cells(&cells: &[u8; H * W]) {
-    for entry in cells.iter().enumerate() {
-        let (index, value) = entry;
-        if index % W == 0 {
-            print!("\n")
-        }
-        print!("{value}")
-    }
 }

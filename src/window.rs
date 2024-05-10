@@ -1,6 +1,7 @@
 use std::num::NonZeroU32;
 use std::cmp::min;
 use rand::Rng;
+use winit::dpi::LogicalSize;
 use winit::event::{ Event, StartCause, WindowEvent };
 use winit::event_loop::{ ControlFlow, EventLoop };
 use winit::window::WindowBuilder;
@@ -18,6 +19,8 @@ pub fn run() {
     let mut surface = (unsafe { softbuffer::Surface::new(&context, &window) }).unwrap();
     let mut cells: [u8; CELLS_COUNT] = [0; CELLS_COUNT];
 
+    window.set_inner_size(LogicalSize::new(256, 256));
+
     let mut rng = rand::thread_rng();
     for ii in 0..CELLS_COUNT {
         let value: u8 = rng.gen::<u8>() / 180;
@@ -27,13 +30,15 @@ pub fn run() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
+        let (screen_width, screen_height) = {
+            let size = window.inner_size();
+            (size.width, size.height)
+        };
+        let mut width_scale_factor = (screen_width as usize) / W;
+        let mut height_scale_factor = (screen_height as usize) / H;
+
         match event {
             Event::NewEvents(start_clause) if start_clause == StartCause::Poll => {
-                let (screen_width, screen_height) = {
-                    let size = window.inner_size();
-                    // println!("window size {:?}", window.inner_size());
-                    (size.width, size.height)
-                };
                 cells = update_cells(cells);
                 surface
                     .resize(
@@ -43,10 +48,8 @@ pub fn run() {
                     .unwrap();
 
                 let mut buffer = surface.buffer_mut().unwrap();
-                let pixels: usize = (screen_width as usize) * (screen_height as usize);
-                let width_scale_factor = (screen_width as usize) / W;
-                let height_scale_factor = (screen_height as usize) / H;
-                for ii in 0..pixels {
+
+                for ii in 0..(screen_width as usize) * (screen_height as usize) {
                     let x = ii % (screen_width as usize);
                     let y = ii / (screen_width as usize);
 
@@ -65,23 +68,14 @@ pub fn run() {
             }
 
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                let (screen_width, screen_height) = {
-                    let size = window.inner_size();
-                    // println!("window size {:?}", window.inner_size());
-                    (size.width, size.height)
-                };
-                cells = update_cells(cells);
                 surface
                     .resize(
                         NonZeroU32::new(screen_width).unwrap(),
                         NonZeroU32::new(screen_height).unwrap()
                     )
                     .unwrap();
-
                 let mut buffer = surface.buffer_mut().unwrap();
                 let pixels: usize = (screen_width as usize) * (screen_height as usize);
-                let width_scale_factor = (screen_width as usize) / W;
-                let height_scale_factor = (screen_height as usize) / H;
                 for ii in 0..pixels {
                     let x = ii % (screen_width as usize);
                     let y = ii / (screen_width as usize);
@@ -100,10 +94,21 @@ pub fn run() {
                 buffer.present().unwrap();
             }
 
-            Event::WindowEvent { event: WindowEvent::CloseRequested, window_id } if
-                window_id == window.id()
-            => {
-                *control_flow = ControlFlow::Exit;
+            Event::WindowEvent { event, window_id } if window_id == window.id() => {
+                match event {
+                    WindowEvent::Resized(_) => {
+                        let (screen_width, screen_height) = {
+                            let size = window.inner_size();
+                            (size.width, size.height)
+                        };
+                        width_scale_factor = (screen_width as usize) / W;
+                        height_scale_factor = (screen_height as usize) / H;
+                    }
+                    WindowEvent::CloseRequested => {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    _ => {} // this is a neat lil guy to avoid writing every match
+                }
             }
             _ => {}
         }
