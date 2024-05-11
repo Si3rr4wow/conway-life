@@ -1,9 +1,11 @@
 mod cells;
 mod window;
-use crate::window::run;
 
-const H: usize = 100;
-const W: usize = 100;
+use window::run;
+
+const H: usize = 40;
+const W: usize = 40;
+const CELLS_COUNT: usize = H * W;
 
 fn main() {
     run();

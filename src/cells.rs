@@ -1,74 +1,92 @@
-use crate::{ H, W };
+use crate::{ CELLS_COUNT, H, W };
+use rand::Rng;
 
-fn get_neighbor_indices(&index: &usize) -> [Option<usize>; 8] {
-    let mut neighbors: [Option<usize>; 8] = [None; 8];
-    let w_mod = index % W;
-    let is_left_edge = w_mod == 0;
-    let is_right_edge = w_mod == W - 1;
-    let is_top_edge = index < W;
-    let is_bottom_edge = index >= H * (W - 1);
-
-    if !is_top_edge {
-        neighbors[1] = Some(index - W); //tt
-        if !is_left_edge {
-            neighbors[0] = Some(index - W - 1); //tl
-        }
-        if !is_right_edge {
-            neighbors[2] = Some(index - W + 1); //tr
-        }
-    }
-    if !is_left_edge {
-        neighbors[3] = Some(index - 1); //ll
-    }
-    if !is_right_edge {
-        neighbors[4] = Some(index + 1); //rr
-    }
-    if !is_bottom_edge {
-        neighbors[6] = Some(index + W); //bb
-        if !is_left_edge {
-            neighbors[5] = Some(index + W - 1); //bl
-        }
-        if !is_right_edge {
-            neighbors[7] = Some(index + W + 1); //br
-        }
-    }
-    neighbors
+#[derive(Clone, Copy)]
+pub struct Cell {
+    pub index: usize,
+    pub value: u8,
+    neighbor_indices: [Option<usize>; 8],
 }
 
-fn get_living_neighbor_count(&index: &usize, &cells: &[u8; H * W]) -> u8 {
-    let neighbor_indices = get_neighbor_indices(&index);
-    let mut count: u8 = 0;
-    for neighbor_index in neighbor_indices {
-        neighbor_index.inspect(|ni: &usize| {
-            if cells[*ni] == 0 {
-                return;
+impl Cell {
+    fn get_living_neighbor_count(&self, cells: &[Cell; CELLS_COUNT]) -> u8 {
+        let mut count: u8 = 0;
+        for neighbor_index in self.neighbor_indices {
+            neighbor_index.inspect(|ni: &usize| {
+                if cells[*ni].value == 0 {
+                    return;
+                }
+                count += 1;
+            });
+        }
+        count
+    }
+
+    fn populate_neighbor_indices(&mut self) {
+        let mut neighbor_indices: [Option<usize>; 8] = [None; 8];
+        let w_mod = self.index % W;
+        let is_left_edge = w_mod == 0;
+        let is_right_edge = w_mod == W - 1;
+        let is_top_edge = self.index < W;
+        let is_bottom_edge = self.index >= H * (W - 1);
+
+        if !is_top_edge {
+            neighbor_indices[1] = Some(self.index - W);
+            if !is_left_edge {
+                neighbor_indices[0] = Some(self.index - W - 1);
             }
-            count += 1;
-        });
-    }
-    count
-}
-
-fn get_living_neighbor_counts(&cells: &[u8; H * W]) -> [u8; H * W] {
-    let mut counts: [u8; H * W] = [0; H * W];
-    for ii in 0..H * W {
-        counts[ii] = get_living_neighbor_count(&ii, &cells);
-    }
-    counts
-}
-
-pub fn update_cells(mut cells: [u8; H * W]) -> [u8; H * W] {
-    let living_neighbor_counts = get_living_neighbor_counts(&cells);
-    for ii in 0..H * W {
-        if cells[ii] == 1 && living_neighbor_counts[ii] < 2 {
-            cells[ii] = 0;
-        } else if cells[ii] == 1 && living_neighbor_counts[ii] < 4 {
-            continue;
-        } else if cells[ii] == 1 && living_neighbor_counts[ii] >= 4 {
-            cells[ii] = 0;
-        } else if cells[ii] == 0 && living_neighbor_counts[ii] == 3 {
-            cells[ii] = 1;
+            if !is_right_edge {
+                neighbor_indices[2] = Some(self.index - W + 1);
+            }
         }
+        if !is_left_edge {
+            neighbor_indices[3] = Some(self.index - 1);
+        }
+        if !is_right_edge {
+            neighbor_indices[4] = Some(self.index + 1);
+        }
+        if !is_bottom_edge {
+            neighbor_indices[6] = Some(self.index + W);
+            if !is_left_edge {
+                neighbor_indices[5] = Some(self.index + W - 1);
+            }
+            if !is_right_edge {
+                neighbor_indices[7] = Some(self.index + W + 1);
+            }
+        }
+        self.neighbor_indices = neighbor_indices;
     }
+}
+
+pub fn build_cells() -> [Cell; CELLS_COUNT] {
+    let mut cells = [Cell { index: 0, value: 0, neighbor_indices: [Some(0); 8] }; CELLS_COUNT];
+    let mut rng = rand::thread_rng();
+
+    for ii in 0..CELLS_COUNT {
+        cells[ii].index = ii;
+        cells[ii].populate_neighbor_indices();
+        cells[ii].value = rng.gen::<f64>().round() as u8;
+    }
+
     cells
+}
+
+fn get_next_cell_value(cell: &Cell, cells: &[Cell; CELLS_COUNT]) -> u8 {
+    let living_neighbors = cell.get_living_neighbor_count(&cells);
+    if cell.value == 1 && living_neighbors < 2 {
+        return 0;
+    } else if cell.value == 1 && living_neighbors >= 4 {
+        return 0;
+    } else if cell.value == 0 && living_neighbors == 3 {
+        return 1;
+    }
+    cell.value
+}
+
+pub fn get_next_cells(cells: &[Cell; CELLS_COUNT]) -> [Cell; CELLS_COUNT] {
+    let mut next_cells = cells.clone();
+    for ii in 0..CELLS_COUNT {
+        next_cells[ii].value = get_next_cell_value(&cells[ii], &cells);
+    }
+    next_cells
 }

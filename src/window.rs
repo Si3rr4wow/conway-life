@@ -1,14 +1,12 @@
 use std::num::NonZeroU32;
 use std::cmp::min;
-use rand::Rng;
 use winit::dpi::LogicalSize;
 use winit::event::{ Event, StartCause, WindowEvent };
 use winit::event_loop::{ ControlFlow, EventLoop };
 use winit::window::WindowBuilder;
 
-use crate::cells::update_cells;
-use crate::{ H, W };
-const CELLS_COUNT: usize = H * W;
+use crate::cells::{ build_cells, get_next_cells };
+use crate::{ CELLS_COUNT, H, W };
 const BLACK: u32 = 0;
 const WHITE: u32 = 255 + (255 << 8) + (255 << 16);
 
@@ -17,15 +15,9 @@ pub fn run() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     let context = (unsafe { softbuffer::Context::new(&window) }).unwrap();
     let mut surface = (unsafe { softbuffer::Surface::new(&context, &window) }).unwrap();
-    let mut cells: [u8; CELLS_COUNT] = [0; CELLS_COUNT];
+    let mut cells = build_cells();
 
     window.set_inner_size(LogicalSize::new(256, 256));
-
-    let mut rng = rand::thread_rng();
-    for ii in 0..CELLS_COUNT {
-        let value: u8 = rng.gen::<u8>() / 180;
-        cells[ii] = value;
-    }
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -39,7 +31,7 @@ pub fn run() {
 
         match event {
             Event::NewEvents(start_clause) if start_clause == StartCause::Poll => {
-                cells = update_cells(cells);
+                cells = get_next_cells(&cells);
                 surface
                     .resize(
                         NonZeroU32::new(screen_width).unwrap(),
@@ -60,7 +52,7 @@ pub fn run() {
                         relative_x_index + relative_y_index * W
                     );
                     let color = {
-                        if cells[relative_index] == 0 { WHITE } else { BLACK }
+                        if cells[relative_index].value == 0 { WHITE } else { BLACK }
                     };
                     buffer[ii] = color;
                 }
@@ -87,7 +79,7 @@ pub fn run() {
                         relative_x_index + relative_y_index * W
                     );
                     let color = {
-                        if cells[relative_index] == 0 { WHITE } else { BLACK }
+                        if cells[relative_index].value == 0 { WHITE } else { BLACK }
                     };
                     buffer[ii] = color;
                 }
