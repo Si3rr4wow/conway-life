@@ -4,7 +4,7 @@ use rand::Rng;
 #[derive(Clone, Copy)]
 pub struct Cell {
     pub index: usize,
-    pub value: u8,
+    pub is_alive: bool,
     neighbor_indices: [Option<usize>; 8],
 }
 
@@ -13,7 +13,7 @@ impl Cell {
         let mut count: u8 = 0;
         for neighbor_index in self.neighbor_indices {
             neighbor_index.inspect(|ni: &usize| {
-                if cells[*ni].value == 0 {
+                if !cells[*ni].is_alive {
                     return;
                 }
                 count += 1;
@@ -30,6 +30,12 @@ impl Cell {
         let is_top_edge = self.index < W;
         let is_bottom_edge = self.index >= H * (W - 1);
 
+        if !is_left_edge {
+            neighbor_indices[3] = Some(self.index - 1);
+        }
+        if !is_right_edge {
+            neighbor_indices[4] = Some(self.index + 1);
+        }
         if !is_top_edge {
             neighbor_indices[1] = Some(self.index - W);
             if !is_left_edge {
@@ -38,12 +44,6 @@ impl Cell {
             if !is_right_edge {
                 neighbor_indices[2] = Some(self.index - W + 1);
             }
-        }
-        if !is_left_edge {
-            neighbor_indices[3] = Some(self.index - 1);
-        }
-        if !is_right_edge {
-            neighbor_indices[4] = Some(self.index + 1);
         }
         if !is_bottom_edge {
             neighbor_indices[6] = Some(self.index + W);
@@ -59,34 +59,34 @@ impl Cell {
 }
 
 pub fn build_cells() -> [Cell; CELLS_COUNT] {
-    let mut cells = [Cell { index: 0, value: 0, neighbor_indices: [Some(0); 8] }; CELLS_COUNT];
+    let mut cells = [Cell { index: 0, is_alive: false, neighbor_indices: [None; 8] }; CELLS_COUNT];
     let mut rng = rand::thread_rng();
 
     for ii in 0..CELLS_COUNT {
         cells[ii].index = ii;
         cells[ii].populate_neighbor_indices();
-        cells[ii].value = rng.gen::<f64>().round() as u8;
+        cells[ii].is_alive = rng.gen::<f64>().round() as u8 == 0;
     }
 
     cells
 }
 
-fn get_next_cell_value(cell: &Cell, cells: &[Cell; CELLS_COUNT]) -> u8 {
+fn get_next_cell_value(cell: &Cell, cells: &[Cell; CELLS_COUNT]) -> bool {
     let living_neighbors = cell.get_living_neighbor_count(&cells);
-    if cell.value == 1 && living_neighbors < 2 {
-        return 0;
-    } else if cell.value == 1 && living_neighbors >= 4 {
-        return 0;
-    } else if cell.value == 0 && living_neighbors == 3 {
-        return 1;
+    if cell.is_alive && living_neighbors < 2 {
+        return false;
+    } else if cell.is_alive && living_neighbors >= 4 {
+        return false;
+    } else if !cell.is_alive && living_neighbors == 3 {
+        return true;
     }
-    cell.value
+    cell.is_alive
 }
 
 pub fn get_next_cells(cells: &[Cell; CELLS_COUNT]) -> [Cell; CELLS_COUNT] {
     let mut next_cells = cells.clone();
     for ii in 0..CELLS_COUNT {
-        next_cells[ii].value = get_next_cell_value(&cells[ii], &cells);
+        next_cells[ii].is_alive = get_next_cell_value(&cells[ii], &cells);
     }
     next_cells
 }

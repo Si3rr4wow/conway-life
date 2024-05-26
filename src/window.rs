@@ -23,7 +23,7 @@ fn write_buffer(
         let relative_y_index = y / height_scale_factor;
         let relative_index = min(CELLS_COUNT - 1, relative_x_index + relative_y_index * W);
         let color = {
-            if cells[relative_index].value == 0 { WHITE } else { BLACK }
+            if cells[relative_index].is_alive { BLACK } else { WHITE }
         };
         buffer[ii] = color;
     }
